@@ -12,6 +12,7 @@ git-status-of-so-many
 
 # Requirements
 
+* you have all git repos under 1 dir. Example /home/user/git_repos/
 * any Ruby
 * was made for terminals with dark background
 * these aliases in your ~/.gitconfig
@@ -24,7 +25,6 @@ git-status-of-so-many
 
 # How to run?
 
-* download git repo
 * ./git-status-of-so-many.rb -h
 * ./git-status-of-so-many.rb
-* configure your git projects home via onscreen instructions
+* configure your git repos home via onscreen instructions
