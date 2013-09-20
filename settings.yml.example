@@ -1,4 +1,5 @@
 settings:
   your_home_of_all_git_repos: #all repos inside will be found (recursively too!)
+                              #Use absolute value starting with /
     /home/nthx/projects
 

@@ -197,7 +197,8 @@ class CmdLineParser
 
   private
   def verify_settings_exist
-    if !File.exists? 'settings.yml'
+    current_dir = File.dirname(__FILE__)
+    if !File.exists? File.join current_dir, 'settings.yml'
       puts red "Configure me first!:"
       puts red "cp settings.yml.example settings.yml"
       puts red "vim settings.yml"
@@ -206,8 +207,9 @@ class CmdLineParser
   end
 
   def setup_home_variable!
+    current_dir = File.dirname(__FILE__)
     begin
-      cnf = YAML::load(File.open('settings.yml'))
+      cnf = YAML::load(File.open(File.join current_dir, 'settings.yml'))
       @cmd.repos_home = cnf['settings']['your_home_of_all_git_repos']
     rescue Exception => e
       puts red "Sth wrong with reading: settings. Remove and run/configure again. \nError: #{e.message}"
