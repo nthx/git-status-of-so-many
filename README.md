@@ -16,10 +16,10 @@ git-status-of-so-many
 * was made for terminals with dark background
 * these aliases in your ~/.gitconfig
 
-$ cat ~/.gitconfig
-    [alias]
-      st = status
-      sl = stash list
+        $ cat ~/.gitconfig
+        [alias]
+          st = status
+          sl = stash list
 
 
 # How to run?
