@@ -94,25 +94,27 @@ class GitProjectsStatus
   def puts_repo_on_screen(repo)
     return unless repo[:has_sth_to_show]
 
-    puts "cd #{yellow repo[:dir]}; git st; git sl"
-    puts "#{repo[:branch]}"
+    header = "cd #{repo[:dir]}; git st; git sl"
+    puts blue '*' * header.length
+    puts blue header
+    puts blue "(#{repo[:branch]})"
 
     return if @options.silent
 
     if repo[:stashes].length > 0
-      puts yellow "STASHES:"
+      #puts yellow "Stashes:"
       repo[:stashes].each {|stash| puts "  #{stash}"}
     end
     if repo[:untracked]
       puts red "Has untracked files"
     end
     if repo[:has_not_staged]
-      puts yellow "Has #{GIT_MSG_IS_DIRTY}"
+      puts red "Has #{GIT_MSG_IS_DIRTY}"
     end
     if repo[:has_commits_to_push]
       puts red "Has commits to push: #{repo[:commits_to_push]}"
     end
-    puts "\n"
+    puts "\n\n"
   end
 
   def find_repos(repos_home)
