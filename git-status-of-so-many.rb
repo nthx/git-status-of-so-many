@@ -49,6 +49,10 @@ class GitProjectsStatus
     repo[:has_sth_to_show] = true if repo[:stashes].length > 0
     repo[:has_sth_to_show] = true if repo[:has_not_staged]
     repo[:has_sth_to_show] = true if repo[:commits_to_push] > 0
+
+    if @options.verbose
+      puts repo[:name]
+    end
   end
 
   def gather_git_state(repo)
