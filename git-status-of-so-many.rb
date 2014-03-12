@@ -147,10 +147,10 @@ class GitProjectsStatus
     dirs = Dir.glob(["#{repos_home}/*", "#{repos_home}/*/*", "#{repos_home}/*/*/*"])
     dirs = dirs.select {|dir| dir if File.directory?(dir) and File.directory?("#{dir}/.git")}
 
-    #filter only popular repos
-    if @options.opt_popular_repos
+    #filter only fav repos
+    if @options.opt_fav_repos
       dirs = dirs.select do |dir|
-        if @options.setting_popular_repos.any? {|pattern| "#{dir}/".match(pattern)}
+        if @options.setting_fav_repos.any? {|pattern| "#{dir}/".match(pattern)}
           true
         else
           false
@@ -211,7 +211,7 @@ class CmdLineParser
   attr_reader :cmd
 
   def initialize
-    cmdStruct = Struct.new(:verbose, :setting_repos_home, :setting_popular_repos, :silent, :above_tag_commits, :opt_popular_repos)
+    cmdStruct = Struct.new(:verbose, :setting_repos_home, :setting_fav_repos, :silent, :above_tag_commits, :opt_fav_repos)
     @cmd = cmdStruct.new
   end
 
@@ -227,8 +227,8 @@ class CmdLineParser
       opts.on("-t", "--above-tag-commits", "Show not tagged commits") do |o|
         @cmd.above_tag_commits = o
       end
-      opts.on("-p", "--popular_repos", "Show popular repos only") do |o|
-        @cmd.opt_popular_repos = o
+      opts.on("-f", "--fav_repos", "Show fav repos only") do |o|
+        @cmd.opt_fav_repos = o
       end
     end
     parser.parse!(ARGV)
@@ -255,7 +255,7 @@ class CmdLineParser
     begin
       cnf = YAML::load(File.open(File.join current_dir, 'settings.yml'))
       @cmd.setting_repos_home = cnf['settings']['your_home_of_all_git_repos']
-      @cmd.setting_popular_repos = cnf['settings']['popular_repos']
+      @cmd.setting_fav_repos = cnf['settings']['fav_repos']
     rescue Exception => e
       puts red "Sth wrong with reading: settings. Remove and run/configure again. \nError: #{e.message}"
       exit
