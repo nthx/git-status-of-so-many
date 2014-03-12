@@ -10,7 +10,6 @@ GIT_MSG_HAS_COMMITS="Your branch is ahead of"
 GIT_MSG_IS_DIRTY="Changes not staged for commit"
 GIT_MSG_TO_COMMIT="Changes to be committed"
 
-
 class GitProjectsStatus
   def start(cmd)
     @options = cmd
@@ -43,12 +42,15 @@ class GitProjectsStatus
     repo[:has_not_staged] = gather_not_staged(repo)
     repo[:has_commits_to_push] = gather_commits_to_push(repo)
     repo[:commits_to_push] = gather_no_of_commits_to_push(repo)
+    repo[:latest_tag], repo[:latest_tag_commit] = gather_latest_tag(repo)
+    repo[:commits_above_latest_tag] = gather_commits_above_latest_tag(repo)
 
     repo[:has_sth_to_show] = false
     repo[:has_sth_to_show] = true if repo[:untracked]
     repo[:has_sth_to_show] = true if repo[:stashes].length > 0
     repo[:has_sth_to_show] = true if repo[:has_not_staged]
     repo[:has_sth_to_show] = true if repo[:commits_to_push] > 0
+    repo[:has_sth_to_show] = true if @options.above_tag_commits && repo[:commits_above_latest_tag]
 
     if @options.verbose
       puts repo[:name]
@@ -95,6 +97,19 @@ class GitProjectsStatus
     end
   end
 
+  def gather_latest_tag(repo)
+    latest_tag = `cd #{repo[:dir]}; git for-each-ref refs/tags --sort=-authordate --format='%(refname)' --count=1`.to_s.strip
+    return [nil, nil] if latest_tag.length == 0
+    latest_tag_commit = `cd #{repo[:dir]}; git rev-list #{latest_tag}| head -1`.to_s.strip
+    [latest_tag, latest_tag_commit]
+  end
+
+  def gather_commits_above_latest_tag(repo)
+    return nil if not repo[:latest_tag]
+    result = `cd #{repo[:dir]}; git log --pretty=oneline #{repo[:latest_tag]}..HEAD`.to_s.strip.split "\n"
+    result.length > 0 ? result:nil
+  end
+
   def puts_repo_on_screen(repo)
     return unless repo[:has_sth_to_show]
 
@@ -117,6 +132,11 @@ class GitProjectsStatus
     end
     if repo[:has_commits_to_push]
       puts red "Has commits to push: #{repo[:commits_to_push]}"
+    end
+    
+    if @options.above_tag_commits && repo[:latest_tag] && repo[:commits_above_latest_tag]
+      puts red "Commits above: #{repo[:latest_tag]}"
+      puts repo[:commits_above_latest_tag][0..10]
     end
     puts "\n\n"
   end
@@ -179,7 +199,7 @@ class CmdLineParser
   attr_reader :cmd
 
   def initialize
-    cmdStruct = Struct.new(:verbose, :repos_home, :silent)
+    cmdStruct = Struct.new(:verbose, :repos_home, :silent, :above_tag_commits)
     @cmd = cmdStruct.new
   end
 
@@ -191,6 +211,9 @@ class CmdLineParser
       end
       opts.on("-s", "--silent", "Run with little output") do |o|
         @cmd.silent = o
+      end
+      opts.on("-t", "--above-tag-commits", "Show not tagged commits") do |o|
+        @cmd.above_tag_commits = o
       end
     end
     parser.parse!(ARGV)
