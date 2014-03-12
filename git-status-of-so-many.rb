@@ -13,7 +13,7 @@ GIT_MSG_TO_COMMIT="Changes to be committed"
 class GitProjectsStatus
   def start(cmd)
     @options = cmd
-    @repos = find_repos(@options.repos_home)
+    @repos = find_repos(@options.setting_repos_home)
     show
     bye_bye
   end
@@ -43,7 +43,7 @@ class GitProjectsStatus
     repo[:has_commits_to_push] = gather_commits_to_push(repo)
     repo[:commits_to_push] = gather_no_of_commits_to_push(repo)
     repo[:latest_tag], repo[:latest_tag_commit] = gather_latest_tag(repo)
-    repo[:commits_above_latest_tag] = gather_commits_above_latest_tag(repo)
+    repo[:commits_above_latest_tag], repo[:commits_above_latest_tag_short] = gather_commits_above_latest_tag(repo)
 
     repo[:has_sth_to_show] = false
     repo[:has_sth_to_show] = true if repo[:untracked]
@@ -106,8 +106,9 @@ class GitProjectsStatus
 
   def gather_commits_above_latest_tag(repo)
     return nil if not repo[:latest_tag]
-    result = `cd #{repo[:dir]}; git log --pretty=oneline #{repo[:latest_tag]}..HEAD`.to_s.strip.split "\n"
-    result.length > 0 ? result:nil
+    commits = `cd #{repo[:dir]}; git log --pretty=oneline #{repo[:latest_tag]}..HEAD`.to_s.strip.split "\n"
+    commits_short = `cd #{repo[:dir]}; git log --pretty=oneline #{repo[:latest_tag]}..HEAD | cut -d' ' -f2-`.to_s.strip.split "\n"
+    commits.length > 0 ? [commits, commits_short]: [nil, nil]
   end
 
   def puts_repo_on_screen(repo)
@@ -136,7 +137,7 @@ class GitProjectsStatus
     
     if @options.above_tag_commits && repo[:latest_tag] && repo[:commits_above_latest_tag]
       puts red "Commits above: #{repo[:latest_tag]}"
-      puts repo[:commits_above_latest_tag][0..10]
+      puts repo[:commits_above_latest_tag_short][0..20].map {|l| "  => #{l}"}
     end
     puts "\n\n"
   end
@@ -145,6 +146,17 @@ class GitProjectsStatus
     #will only find repos 3-lvls deep
     dirs = Dir.glob(["#{repos_home}/*", "#{repos_home}/*/*", "#{repos_home}/*/*/*"])
     dirs = dirs.select {|dir| dir if File.directory?(dir) and File.directory?("#{dir}/.git")}
+
+    #filter only popular repos
+    if @options.opt_popular_repos
+      dirs = dirs.select do |dir|
+        if @options.setting_popular_repos.any? {|pattern| "#{dir}/".match(pattern)}
+          true
+        else
+          false
+        end
+      end
+    end
     dirs.map {|dir| {:dir => dir}}
   end
 end
@@ -199,7 +211,7 @@ class CmdLineParser
   attr_reader :cmd
 
   def initialize
-    cmdStruct = Struct.new(:verbose, :repos_home, :silent, :above_tag_commits)
+    cmdStruct = Struct.new(:verbose, :setting_repos_home, :setting_popular_repos, :silent, :above_tag_commits, :opt_popular_repos)
     @cmd = cmdStruct.new
   end
 
@@ -214,6 +226,9 @@ class CmdLineParser
       end
       opts.on("-t", "--above-tag-commits", "Show not tagged commits") do |o|
         @cmd.above_tag_commits = o
+      end
+      opts.on("-p", "--popular_repos", "Show popular repos only") do |o|
+        @cmd.opt_popular_repos = o
       end
     end
     parser.parse!(ARGV)
@@ -239,7 +254,8 @@ class CmdLineParser
     current_dir = File.dirname(__FILE__)
     begin
       cnf = YAML::load(File.open(File.join current_dir, 'settings.yml'))
-      @cmd.repos_home = cnf['settings']['your_home_of_all_git_repos']
+      @cmd.setting_repos_home = cnf['settings']['your_home_of_all_git_repos']
+      @cmd.setting_popular_repos = cnf['settings']['popular_repos']
     rescue Exception => e
       puts red "Sth wrong with reading: settings. Remove and run/configure again. \nError: #{e.message}"
       exit
