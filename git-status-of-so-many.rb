@@ -136,8 +136,9 @@ class GitProjectsStatus
     end
     
     if @options.above_tag_commits && repo[:latest_tag] && repo[:commits_above_latest_tag]
-      puts red "Commits above: #{repo[:latest_tag]}"
+      puts red "\nHEAD"
       puts repo[:commits_above_latest_tag_short][0..20].map {|l| "  => #{l}"}
+      puts red "Commits above: #{repo[:latest_tag].gsub('refs/tags/', '')} ^"
     end
     puts "\n\n"
   end
