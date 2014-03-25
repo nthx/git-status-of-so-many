@@ -98,7 +98,8 @@ class GitProjectsStatus
   end
 
   def gather_latest_tag(repo)
-    latest_tag = `cd #{repo[:dir]}; git for-each-ref refs/tags --sort=-authordate --format='%(refname)' --count=1`.to_s.strip
+    cmd = "cd #{repo[:dir]}; git log --simplify-by-decoration --decorate --pretty=oneline | cut -f2- -d' '| sed -e \"s/^\(HEAD, /\\(/g\" | grep \"^(tag:\" | cut -d'(' -f2- | sed -e \"s/^tag: //g\"| cut -d, -f1 | cut -d')' -f1| head -1 2> /dev/null"
+    latest_tag = `#{cmd}`.to_s.strip
     return [nil, nil] if latest_tag.length == 0
     latest_tag_commit = `cd #{repo[:dir]}; git rev-list #{latest_tag}| head -1`.to_s.strip
     [latest_tag, latest_tag_commit]
