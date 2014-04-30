@@ -4,3 +4,4 @@ settings:
     /home/nthx/projects
 
   fav_repos: ['any_dir/repo1', 'subdir/repo2', 'subdir2/repo3']
+  excluded_repos: ['anydir/deprecated']

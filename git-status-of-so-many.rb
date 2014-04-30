@@ -14,11 +14,18 @@ class GitProjectsStatus
   def start(cmd)
     @options = cmd
     @repos = find_repos(@options.setting_repos_home)
+    process_repos
     show
     bye_bye
   end
 
   private
+  def process_repos
+    @repos.sort_by{|e| e[:dir]}.each do |repo|
+      gather_git_info! repo
+    end
+  end
+
   def show
     @repos.each {|repo| show_status repo }
   end
@@ -29,32 +36,34 @@ class GitProjectsStatus
   end
 
   def show_status(repo)
-    gather_git_info! repo
     puts_repo_on_screen repo
   end
 
   def gather_git_info!(repo)
     repo[:name] = repo[:dir]
+    puts repo[:name] if @options.opt_verbose
+
     repo[:git] = gather_git_state(repo)
-    repo[:stashes] = gather_stashes(repo)
+    if @options.opt_show_changes
+      repo[:stashes] = gather_stashes(repo)
+    else
+      repo[:stashes] = []
+    end
     repo[:branch] = gather_branch(repo)
     repo[:untracked] = gather_untracked(repo)
     repo[:has_not_staged] = gather_not_staged(repo)
     repo[:has_commits_to_push] = gather_commits_to_push(repo)
     repo[:commits_to_push] = gather_no_of_commits_to_push(repo)
     repo[:latest_tag], repo[:latest_tag_commit] = gather_latest_tag(repo)
-    repo[:commits_above_latest_tag], repo[:commits_above_latest_tag_short] = gather_commits_above_latest_tag(repo)
+    repo[:commits_after_tag], repo[:commits_after_tag_short] = gather_commits_above_latest_tag(repo)
 
     repo[:has_sth_to_show] = false
     repo[:has_sth_to_show] = true if repo[:untracked]
     repo[:has_sth_to_show] = true if repo[:stashes].length > 0
     repo[:has_sth_to_show] = true if repo[:has_not_staged]
     repo[:has_sth_to_show] = true if repo[:commits_to_push] > 0
-    repo[:has_sth_to_show] = true if @options.above_tag_commits && repo[:commits_above_latest_tag]
+    repo[:has_sth_to_show] = true if @options.opt_show_commits_after_tag && repo[:commits_after_tag]
 
-    if @options.verbose
-      puts repo[:name]
-    end
   end
 
   def gather_git_state(repo)
@@ -136,9 +145,9 @@ class GitProjectsStatus
       puts red "Has commits to push: #{repo[:commits_to_push]}"
     end
     
-    if @options.above_tag_commits && repo[:latest_tag] && repo[:commits_above_latest_tag]
+    if @options.opt_show_commits_after_tag && repo[:latest_tag] && repo[:commits_after_tag]
       puts red "\nHEAD"
-      puts repo[:commits_above_latest_tag_short][0..20].map {|l| "  => #{l}"}
+      puts repo[:commits_after_tag_short][0..20].map {|l| "  => #{l}"}
       puts red "Commits above: #{repo[:latest_tag].gsub('refs/tags/', '')} ^"
     end
     puts "\n\n"
@@ -147,6 +156,8 @@ class GitProjectsStatus
   def find_repos(repos_home)
     #will only find repos 3-lvls deep
     dirs = Dir.glob(["#{repos_home}/*", "#{repos_home}/*/*", "#{repos_home}/*/*/*"])
+
+    #select dirs only
     dirs = dirs.select {|dir| dir if File.directory?(dir) and File.directory?("#{dir}/.git")}
 
     #filter only fav repos
@@ -159,6 +170,9 @@ class GitProjectsStatus
         end
       end
     end
+
+    #filter out excluded repos
+    dirs = dirs.select { |dir| @options.setting_excluded_repos.any? {|pattern| "#{dir}/".match(pattern)} ? false : true }
     dirs.map {|dir| {:dir => dir}}
   end
 end
@@ -213,26 +227,32 @@ class CmdLineParser
   attr_reader :cmd
 
   def initialize
-    cmdStruct = Struct.new(:verbose, :setting_repos_home, :setting_fav_repos, :silent, :above_tag_commits, :opt_fav_repos)
+    cmdStruct = Struct.new(:opt_verbose, :setting_repos_home, :setting_fav_repos, :setting_excluded_repos, :silent, :opt_show_changes, :opt_show_commits_after_tag, :opt_fav_repos)
     @cmd = cmdStruct.new
+    @cmd.opt_show_changes = true
   end
 
   def parse
     parser = OptionParser.new do |opts|
       opts.banner = "Usage: git-status-of-so-many.rb [options]"
       opts.on("-v", "--[no-]verbose", "Run verbosely") do |o|
-        @cmd.verbose = o
+        @cmd.opt_verbose = o
       end
       opts.on("-s", "--silent", "Run with little output") do |o|
         @cmd.silent = o
       end
       opts.on("-t", "--above-tag-commits", "Show not tagged commits") do |o|
-        @cmd.above_tag_commits = o
+        @cmd.opt_show_commits_after_tag = o
       end
       opts.on("-f", "--fav_repos", "Show fav repos only") do |o|
         @cmd.opt_fav_repos = o
       end
     end
+
+    if @cmd.opt_show_commits_after_tag
+      @cmd.opt_show_changes = false
+    end
+
     parser.parse!(ARGV)
   end
 
@@ -257,7 +277,8 @@ class CmdLineParser
     begin
       cnf = YAML::load(File.open(File.join current_dir, 'settings.yml'))
       @cmd.setting_repos_home = cnf['settings']['your_home_of_all_git_repos']
-      @cmd.setting_fav_repos = cnf['settings']['fav_repos']
+      @cmd.setting_fav_repos = cnf['settings']['fav_repos'] || []
+      @cmd.setting_excluded_repos = cnf['settings']['excluded_repos'] || []
     rescue Exception => e
       puts red "Sth wrong with reading: settings. Remove and run/configure again. \nError: #{e.message}"
       exit
