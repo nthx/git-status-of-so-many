@@ -44,7 +44,7 @@ class GitProjectsStatus
     puts repo[:name] if @options.opt_verbose
 
     repo[:git] = gather_git_state(repo)
-    if @options.opt_show_changes
+    if @options.opt_show_stashes
       repo[:stashes] = gather_stashes(repo)
     else
       repo[:stashes] = []
@@ -54,8 +54,10 @@ class GitProjectsStatus
     repo[:has_not_staged] = gather_not_staged(repo)
     repo[:has_commits_to_push] = gather_commits_to_push(repo)
     repo[:commits_to_push] = gather_no_of_commits_to_push(repo)
-    repo[:latest_tag], repo[:latest_tag_commit] = gather_latest_tag(repo)
-    repo[:commits_after_tag], repo[:commits_after_tag_short] = gather_commits_above_latest_tag(repo)
+    if @options.opt_show_commits_after_tag
+      repo[:latest_tag], repo[:latest_tag_commit] = gather_latest_tag(repo)
+      repo[:commits_after_tag], repo[:commits_after_tag_short] = gather_commits_above_latest_tag(repo)
+    end
 
     repo[:has_sth_to_show] = false
     repo[:has_sth_to_show] = true if repo[:untracked]
@@ -129,7 +131,7 @@ class GitProjectsStatus
     puts blue header
     puts blue "(#{repo[:branch]})"
 
-    return if @options.silent
+    return if @options.opt_silent
 
     if repo[:stashes].length > 0
       #puts yellow "Stashes:"
@@ -227,9 +229,15 @@ class CmdLineParser
   attr_reader :cmd
 
   def initialize
-    cmdStruct = Struct.new(:opt_verbose, :setting_repos_home, :setting_fav_repos, :setting_excluded_repos, :silent, :opt_show_changes, :opt_show_commits_after_tag, :opt_fav_repos)
+    cmdStruct = Struct.new(
+      :opt_verbose, 
+      :opt_silent, 
+      :setting_repos_home, :setting_fav_repos, :setting_excluded_repos, 
+      :opt_show_stashes, 
+      :opt_show_commits_after_tag, 
+      :opt_fav_repos)
     @cmd = cmdStruct.new
-    @cmd.opt_show_changes = true
+    #@cmd.opt_show_stashes = true
   end
 
   def parse
@@ -239,7 +247,7 @@ class CmdLineParser
         @cmd.opt_verbose = o
       end
       opts.on("-s", "--silent", "Run with little output") do |o|
-        @cmd.silent = o
+        @cmd.opt_silent = o
       end
       opts.on("-t", "--above-tag-commits", "Show not tagged commits") do |o|
         @cmd.opt_show_commits_after_tag = o
@@ -247,10 +255,9 @@ class CmdLineParser
       opts.on("-f", "--fav_repos", "Show fav repos only") do |o|
         @cmd.opt_fav_repos = o
       end
-    end
-
-    if @cmd.opt_show_commits_after_tag
-      @cmd.opt_show_changes = false
+      opts.on("-a", "--show_stashes", "Show stashes too") do |o|
+        @cmd.opt_show_stashes = o
+      end
     end
 
     parser.parse!(ARGV)
