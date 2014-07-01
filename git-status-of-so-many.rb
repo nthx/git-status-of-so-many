@@ -9,6 +9,7 @@ GIT_MSG_NO_CHANGE="nothing to commit (working directory clean)"
 GIT_MSG_HAS_COMMITS="Your branch is ahead of"
 GIT_MSG_IS_DIRTY="Changes not staged for commit"
 GIT_MSG_TO_COMMIT="Changes to be committed"
+GIT_MSG_MERGE_CONFLICT="Unmerged paths"
 
 class GitProjectsStatus
   def start(cmd)
@@ -44,16 +45,20 @@ class GitProjectsStatus
     puts repo[:name] if @options.opt_verbose
 
     repo[:git] = gather_git_state(repo)
+
     if @options.opt_show_stashes
       repo[:stashes] = gather_stashes(repo)
     else
       repo[:stashes] = []
     end
+
     repo[:branch] = gather_branch(repo)
     repo[:untracked] = gather_untracked(repo)
     repo[:has_not_staged] = gather_not_staged(repo)
     repo[:has_commits_to_push] = gather_commits_to_push(repo)
+    repo[:in_merge_phase] = gather_merge_info(repo)
     repo[:commits_to_push] = gather_no_of_commits_to_push(repo)
+
     if @options.opt_show_commits_after_tag
       repo[:latest_tag], repo[:latest_tag_commit] = gather_latest_tag(repo)
       repo[:commits_after_tag], repo[:commits_after_tag_short] = gather_commits_above_latest_tag(repo)
@@ -64,6 +69,7 @@ class GitProjectsStatus
     repo[:has_sth_to_show] = true if repo[:stashes].length > 0
     repo[:has_sth_to_show] = true if repo[:has_not_staged]
     repo[:has_sth_to_show] = true if repo[:commits_to_push] > 0
+    repo[:has_sth_to_show] = true if repo[:in_merge_phase]
     repo[:has_sth_to_show] = true if @options.opt_show_commits_after_tag && repo[:commits_after_tag]
 
   end
@@ -95,6 +101,10 @@ class GitProjectsStatus
 
   def gather_commits_to_push(repo)
     repo[:git].grep(/#{GIT_MSG_HAS_COMMITS}/).length > 0
+  end
+
+  def gather_merge_info(repo)
+    repo[:git].grep(/#{GIT_MSG_MERGE_CONFLICT}/).length > 0
   end
 
   def gather_no_of_commits_to_push(repo)
@@ -145,6 +155,10 @@ class GitProjectsStatus
     end
     if repo[:has_commits_to_push]
       puts red "Has commits to push: #{repo[:commits_to_push]}"
+    end
+    
+    if repo[:in_merge_phase]
+      puts red "Merging phase: #{repo[:in_merge_phase]}"
     end
     
     if @options.opt_show_commits_after_tag && repo[:latest_tag] && repo[:commits_after_tag]
@@ -237,7 +251,6 @@ class CmdLineParser
       :opt_show_commits_after_tag, 
       :opt_fav_repos)
     @cmd = cmdStruct.new
-    #@cmd.opt_show_stashes = true
   end
 
   def parse
