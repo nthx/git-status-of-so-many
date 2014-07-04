@@ -18,3 +18,4 @@ _yardoc
 doc/
 settings.yml
 .idea
+*.swp
