@@ -54,6 +54,7 @@ class GitProjectsStatus
 
     repo[:branch] = gather_branch(repo)
     repo[:untracked] = gather_untracked(repo)
+    repo[:has_to_commit] = gather_to_commit(repo)
     repo[:has_not_staged] = gather_not_staged(repo)
     repo[:has_commits_to_push] = gather_commits_to_push(repo)
     repo[:in_merge_phase] = gather_merge_info(repo)
@@ -67,10 +68,12 @@ class GitProjectsStatus
     repo[:has_sth_to_show] = false
     repo[:has_sth_to_show] = true if repo[:untracked]
     repo[:has_sth_to_show] = true if repo[:stashes].length > 0
+    repo[:has_sth_to_show] = true if repo[:has_to_commit]
     repo[:has_sth_to_show] = true if repo[:has_not_staged]
     repo[:has_sth_to_show] = true if repo[:commits_to_push] > 0
     repo[:has_sth_to_show] = true if repo[:in_merge_phase]
     repo[:has_sth_to_show] = true if @options.opt_show_commits_after_tag && repo[:commits_after_tag]
+    puts repo[:has_sth_to_show] if @options.opt_verbose
 
   end
 
@@ -93,6 +96,10 @@ class GitProjectsStatus
 
   def gather_untracked(repo)
     repo[:git].grep(/untracked files/).length > 0
+  end
+
+  def gather_to_commit(repo)
+    repo[:git].grep(/#{GIT_MSG_TO_COMMIT}/).length > 0
   end
 
   def gather_not_staged(repo)
@@ -144,11 +151,13 @@ class GitProjectsStatus
     return if @options.opt_silent
 
     if repo[:stashes].length > 0
-      #puts yellow "Stashes:"
       repo[:stashes].each {|stash| puts "  #{stash}"}
     end
     if repo[:untracked]
       puts red "Has untracked files"
+    end
+    if repo[:has_to_commit]
+      puts red "Has #{GIT_MSG_TO_COMMIT}"
     end
     if repo[:has_not_staged]
       puts red "Has #{GIT_MSG_IS_DIRTY}"
